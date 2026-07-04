@@ -24,6 +24,7 @@ class WeatherData {
 
   final int? utcOffsetSeconds;
   final DateTime fetchedAt;
+  final String? customDescription;
 
   const WeatherData({
     required this.condition,
@@ -35,6 +36,7 @@ class WeatherData {
     required this.sunset,
     required this.utcOffsetSeconds,
     required this.fetchedAt,
+    this.customDescription,
   });
 
   DateTime get localTime {
@@ -51,7 +53,7 @@ class WeatherData {
   bool get isStale =>
       DateTime.now().difference(fetchedAt) > const Duration(hours: 2);
 
-  String get description => wmoDescription(weatherCode);
+  String get description => customDescription ?? wmoDescription(weatherCode);
 
   String get summary {
     final hl = (tempMaxC != null && tempMinC != null)
@@ -70,6 +72,7 @@ class WeatherData {
         'sunset': sunset?.toIso8601String(),
         'utcOffsetSeconds': utcOffsetSeconds,
         'fetchedAt': fetchedAt.toIso8601String(),
+        if (customDescription != null) 'customDescription': customDescription,
       };
 
   static WeatherData fromJson(Map<String, dynamic> json) => WeatherData(
@@ -82,6 +85,7 @@ class WeatherData {
         sunset: _parseOrNull(json['sunset']),
         utcOffsetSeconds: (json['utcOffsetSeconds'] as num?)?.toInt(),
         fetchedAt: DateTime.parse(json['fetchedAt'] as String),
+        customDescription: json['customDescription'] as String?,
       );
 
   static DateTime? _parseOrNull(Object? v) =>

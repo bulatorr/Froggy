@@ -170,6 +170,27 @@ class _Controls extends StatelessWidget {
               },
             ),
             const SizedBox(height: 8),
+            _sectionTitle(context, 'Weather provider'),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: SegmentedButton<WeatherProviderType>(
+                  segments: const [
+                    ButtonSegment(
+                        value: WeatherProviderType.openMeteo,
+                        label: Text('Open-Meteo')),
+                    ButtonSegment(
+                        value: WeatherProviderType.yandex,
+                        label: Text('Yandex')),
+                  ],
+                  selected: {s.provider},
+                  onSelectionChanged: (set) =>
+                      settings.setWeatherProvider(set.first),
+                ),
+              ),
+            ),
+            const Divider(),
             _sectionTitle(context, 'Timing'),
             ListTile(
               dense: true,
@@ -713,11 +734,20 @@ class _AddLocationScreen extends StatefulWidget {
 }
 
 class _AddLocationScreenState extends State<_AddLocationScreen> {
-  final _geocoder = GeocodingService();
+  late final GeocodingService _geocoder;
   final _field = TextEditingController();
   List<SavedLocation> _results = const [];
   bool _loading = false;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    final lang =
+        WidgetsBinding.instance.platformDispatcher.locale.languageCode;
+    _geocoder =
+        GeocodingService(language: lang.length == 2 ? lang.toLowerCase() : 'en');
+  }
 
   Future<void> _search() async {
     final q = _field.text.trim();

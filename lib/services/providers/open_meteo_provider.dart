@@ -2,14 +2,16 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
-import '../models/weather.dart';
+import '../../models/weather.dart';
+import '../weather_provider.dart';
 
-class WeatherService {
-  WeatherService({http.Client? client}) : _client = client ?? http.Client();
+class OpenMeteoProvider implements WeatherProvider {
+  OpenMeteoProvider({http.Client? client}) : _client = client ?? http.Client();
 
   final http.Client _client;
   static const _base = 'https://api.open-meteo.com/v1/forecast';
 
+  @override
   Future<WeatherData> fetch(double lat, double lon) async {
     final uri = Uri.parse(_base).replace(queryParameters: {
       'latitude': lat.toStringAsFixed(4),
@@ -63,6 +65,7 @@ class WeatherService {
     return null;
   }
 
+  @override
   void dispose() => _client.close();
 }
 

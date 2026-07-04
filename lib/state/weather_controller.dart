@@ -7,14 +7,16 @@ import '../models/weather.dart';
 import '../services/asset_catalog.dart';
 import '../services/cache.dart';
 import '../services/location_service.dart';
+import '../services/providers/open_meteo_provider.dart';
+import '../services/providers/yandex_weather_provider.dart';
 import '../services/system_status_service.dart';
-import '../services/weather_service.dart';
+import '../services/weather_provider.dart';
 import 'settings_controller.dart';
 
 class WeatherController extends ChangeNotifier {
   WeatherController({
     AssetCatalog? catalog,
-    WeatherService? weatherService,
+    WeatherProvider? weatherProvider,
     LocationService? locationService,
     Cache? cache,
     SettingsController? settings,
@@ -22,7 +24,7 @@ class WeatherController extends ChangeNotifier {
     this.sceneRotation = const Duration(minutes: 5),
     this.allowLocationPrompt = true,
   })  : _catalog = catalog,
-        _weather = weatherService ?? WeatherService(),
+        _provider = weatherProvider,
         _location = locationService ?? LocationService(),
         _cache = cache ?? Cache(),
         _settings = settings {
@@ -30,7 +32,7 @@ class WeatherController extends ChangeNotifier {
     _settings?.addListener(_onSettingsChanged);
   }
 
-  final WeatherService _weather;
+  WeatherProvider? _provider;
   final LocationService _location;
   final Cache _cache;
   final SettingsController? _settings;
@@ -72,9 +74,30 @@ class WeatherController extends ChangeNotifier {
   bool get usingApproximateLocation => _usingApproximateLocation;
   List<String> get scenes => _catalog?.scenes ?? const [];
 
+  /// Proxy URL for Yandex Weather API (to bypass CORS on web).
+  /// Set this to your Cloudflare Worker URL before calling [init].
+  static String? yandexProxyUrl;
+
+  /// Language code for Yandex Weather API (e.g. 'ru', 'en').
+  /// Set from the app locale before calling [init].
+  static String yandexLang = 'en';
+
+  static WeatherProvider createProvider(WeatherProviderType type) {
+    switch (type) {
+      case WeatherProviderType.openMeteo:
+        return OpenMeteoProvider();
+      case WeatherProviderType.yandex:
+        return YandexWeatherProvider(
+          baseUrl: yandexProxyUrl,
+          lang: yandexLang,
+        );
+    }
+  }
+
   Future<void> init() async {
     _catalog ??= await AssetCatalog.load();
     _useDeviceLocation = !await SystemStatusService().isTelevision();
+    _ensureProvider();
     _data = await _cache.loadWeather();
     _apply();
 
@@ -86,9 +109,15 @@ class WeatherController extends ChangeNotifier {
     await refresh();
   }
 
+  void _ensureProvider() {
+    if (_provider != null) return;
+    final type = _settings?.settings.provider ?? WeatherProviderType.openMeteo;
+    _provider = createProvider(type);
+  }
+
   String _intervalsKey() {
     final s = _settings?.settings;
-    return '${s?.refreshMinutes}:${s?.rotateMinutes}';
+    return '${s?.refreshMinutes}:${s?.rotateMinutes}:${s?.provider.name}';
   }
 
   void _setupPeriodics() {
@@ -105,6 +134,7 @@ class WeatherController extends ChangeNotifier {
 
   Future<void> refresh() async {
     _catalog ??= await AssetCatalog.load();
+    _ensureProvider();
     _loading = true;
     notifyListeners();
     try {
@@ -120,12 +150,13 @@ class WeatherController extends ChangeNotifier {
       _locationName = resolved?.name ?? _locationName;
       await _cache.saveLocation(coords);
 
-      final data = await _weather.fetch(coords.lat, coords.lon);
+      final data = await _provider!.fetch(coords.lat, coords.lon);
       _data = data;
       _error = null;
       await _cache.saveWeather(data);
     } catch (e) {
       _error = e.toString();
+      debugPrint('[Weather] ERROR: $e');
     } finally {
       _loading = false;
       _apply();
@@ -152,11 +183,22 @@ class WeatherController extends ChangeNotifier {
     _lastLocationKey = key;
     if (_started && changed) refresh();
 
-    final iv = _intervalsKey();
-    if (_started && iv != _lastIntervals) {
-      _lastIntervals = iv;
+    final newProvider = _settings?.settings.provider ?? WeatherProviderType.openMeteo;
+    final oldProviderName = _lastIntervals.split(':').last;
+    final pv = _intervalsKey();
+    if (_started && pv != _lastIntervals) {
+      _lastIntervals = pv;
       _setupPeriodics();
+      if (newProvider.name != oldProviderName) {
+        _rebuildProvider(newProvider);
+        refresh();
+      }
     }
+  }
+
+  void _rebuildProvider(WeatherProviderType type) {
+    _provider?.dispose();
+    _provider = createProvider(type);
   }
 
   void cycleScene() {
@@ -191,7 +233,7 @@ class WeatherController extends ChangeNotifier {
     _refreshTimer?.cancel();
     _tick?.cancel();
     _sceneTimer?.cancel();
-    _weather.dispose();
+    _provider?.dispose();
     _location.dispose();
     super.dispose();
   }

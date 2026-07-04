@@ -5,9 +5,11 @@ import 'package:http/http.dart' as http;
 import '../models/settings.dart';
 
 class GeocodingService {
-  GeocodingService({http.Client? client}) : _client = client ?? http.Client();
+  GeocodingService({http.Client? client, this.language = 'en'})
+      : _client = client ?? http.Client();
 
   final http.Client _client;
+  final String language;
   static const _base = 'https://geocoding-api.open-meteo.com/v1/search';
 
   Future<List<SavedLocation>> search(String query) async {
@@ -17,7 +19,7 @@ class GeocodingService {
     final uri = Uri.parse(_base).replace(queryParameters: {
       'name': q,
       'count': '8',
-      'language': 'en',
+      'language': language,
       'format': 'json',
     });
 

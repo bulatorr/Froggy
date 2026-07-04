@@ -70,6 +70,9 @@ class SettingsController extends ChangeNotifier {
   Future<void> setKioskMode(bool v) =>
       _update(_settings.copyWith(kioskMode: v));
 
+  Future<void> setWeatherProvider(WeatherProviderType v) =>
+      _update(_settings.copyWith(provider: v));
+
   Future<void> resetToDefaults() {
     final keep = _settings;
     return _update(Settings(

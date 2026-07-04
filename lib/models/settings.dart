@@ -8,6 +8,8 @@ enum LocationMode { automatic, manual }
 
 enum DimMode { off, auto, scheduled }
 
+enum WeatherProviderType { openMeteo, yandex }
+
 class SavedLocation {
   final String name;
   final double lat;
@@ -64,6 +66,7 @@ class Settings {
   final bool showBluetooth;
   final bool showMusic;
   final bool kioskMode;
+  final WeatherProviderType provider;
 
   const Settings({
     this.unit = TempUnit.celsius,
@@ -88,6 +91,7 @@ class Settings {
     this.showBluetooth = true,
     this.showMusic = true,
     this.kioskMode = false,
+    this.provider = WeatherProviderType.openMeteo,
   });
 
   double dimAt(double nightFactor, DateTime localTime) {
@@ -165,6 +169,7 @@ class Settings {
     bool? showBluetooth,
     bool? showMusic,
     bool? kioskMode,
+    WeatherProviderType? provider,
   }) {
     return Settings(
       unit: unit ?? this.unit,
@@ -192,6 +197,7 @@ class Settings {
       showBluetooth: showBluetooth ?? this.showBluetooth,
       showMusic: showMusic ?? this.showMusic,
       kioskMode: kioskMode ?? this.kioskMode,
+      provider: provider ?? this.provider,
     );
   }
 
@@ -218,6 +224,7 @@ class Settings {
         'showBluetooth': showBluetooth,
         'showMusic': showMusic,
         'kioskMode': kioskMode,
+        'provider': provider.name,
       };
 
   static Settings fromJson(Map<String, dynamic> j) => Settings(
@@ -248,6 +255,8 @@ class Settings {
         showBluetooth: (j['showBluetooth'] as bool?) ?? true,
         showMusic: (j['showMusic'] as bool?) ?? true,
         kioskMode: (j['kioskMode'] as bool?) ?? false,
+        provider: _enumByName(
+            WeatherProviderType.values, j['provider'], WeatherProviderType.openMeteo),
       );
 
   static T _enumByName<T extends Enum>(

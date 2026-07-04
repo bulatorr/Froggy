@@ -70,6 +70,13 @@ class _FroggyAppState extends State<FroggyApp> {
 
   Future<void> _boot() async {
     await _settings.load();
+    if (kIsWeb) {
+      WeatherController.yandexProxyUrl =
+          'https://small-haze-7847.c343s.workers.dev/';
+    }
+    final lang =
+        WidgetsBinding.instance.platformDispatcher.locale.languageCode;
+    WeatherController.yandexLang = lang.length == 2 ? lang.toLowerCase() : 'en';
     await _weather.init();
   }
 
